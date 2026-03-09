@@ -1,69 +1,104 @@
+<div align="center">
+
 # 🛡️ Kubernetes Certificate Expiry Monitor
 
-> **Automated, Zero-Footprint Certificate Monitoring & Alerting for Multi-Distribution K8s Clusters**
+### Automated · Agentless · Multi-Distribution · ChatOps-Ready
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-Multi--Distribution-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io/)
 [![Jenkins](https://img.shields.io/badge/Jenkins-CI%2FCD-D24939?style=for-the-badge&logo=jenkins&logoColor=white)](https://www.jenkins.io/)
 [![Google Chat](https://img.shields.io/badge/Google%20Chat-Alerts-00AC47?style=for-the-badge&logo=googlechat&logoColor=white)](https://chat.google.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+[![SSH](https://img.shields.io/badge/SSH-Ed25519-black?style=for-the-badge&logo=openssh&logoColor=white)](https://www.openssh.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-F7DF1E?style=for-the-badge)](LICENSE)
+
+<br/>
+
+**Stop discovering expired certificates after the outage.**  
+**Start getting alerts days before it ever happens.**
+
+</div>
 
 ---
 
-## 📋 Overview
+## 💡 The Problem
 
-**Cert Monitor** is a lightweight, agentless Python automation tool that daily audits the health of X.509 security certificates across your entire Kubernetes fleet — covering **kubeadm**, **K3s**, and **MicroK8s** distributions.
+In a multi-cluster Kubernetes environment, every control-plane certificate — `apiserver`, `kubelet-client`, `front-proxy-client`, `admin.conf` — has a **~1 year lifespan**. Across 10–15 clusters spanning `kubeadm`, `MicroK8s`, and `K3s`, manually tracking expiry means:
 
-When any certificate is within the configured expiry window, the system **automatically fires a formatted alert directly to your Google Chat room** — with full context, so your team can act before any outage occurs.
+- ❌ Logging into each cluster individually — every day
+- ❌ Certificates expiring silently with **zero warning**
+- ❌ API servers rejecting calls, worker nodes disconnecting, **clusters going dark**
+- ❌ Emergency midnight renewals instead of planned maintenance
 
-> No agents deployed. No dashboards to check. No manual SSH sessions. Just automated, daily peace of mind.
-
----
-
-## ✨ Key Features
-
-| Feature | Description |
-|---|---|
-| 🔍 **Multi-Distribution** | Supports `kubeadm`, `K3s`, and `MicroK8s` clusters natively |
-| 🚫 **Agentless** | Zero software installed on cluster nodes — pure SSH + native commands |
-| 🏢 **Centralized** | Monitor 1 to 100+ clusters from a single Jenkins pipeline |
-| ⚡ **Early Alerts** | Notifies your team days before expiry — not after the outage |
-| 💬 **ChatOps** | Sends rich, actionable alerts directly to Google Chat |
-| 🔒 **Secure** | Uses Ed25519 SSH keys — no passwords, no plaintext secrets |
-| ⚙️ **Configurable** | Threshold, webhook, and cluster inventory are all externally configurable |
-| 🤖 **Fully Automated** | Runs daily via Jenkins CRON — completely unattended |
+**This tool eliminates all of that.**
 
 ---
 
-## 🏗️ Architecture
+## ✅ The Solution
+
+A single Python script, triggered daily by Jenkins, that:
+
+1. SSH-es into every cluster master — **no agents, no sidecars**
+2. Runs the native certificate check command for that distribution
+3. Parses and evaluates every certificate's remaining validity
+4. **Fires an alert to Google Chat** the moment any cert crosses the threshold
+
+> One script. One job. Total coverage. Zero surprises.
+
+---
+
+## ✨ Features at a Glance
+
+| | Feature | Detail |
+|---|---|---|
+| 🔍 | **Multi-Distribution** | Native support for `kubeadm`, `K3s`, and `MicroK8s` |
+| 📡 | **Agentless** | Pure SSH — nothing installed on cluster nodes |
+| 🏢 | **Centralized** | One pipeline covers your entire fleet |
+| ⚡ | **Early Warning** | Configurable threshold — alert days before expiry |
+| 💬 | **ChatOps** | Rich, per-cluster alerts sent directly to Google Chat |
+| 🔒 | **Secure by Default** | Ed25519 SSH keys, no passwords, secrets via Jenkins Credentials |
+| 🤖 | **Fully Automated** | Daily Jenkins CRON — zero human intervention needed |
+| 🔇 | **Noise-Free** | Root CAs (10+ year certs) are automatically excluded |
+
+---
+
+## 🏗️ System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│   GitHub Repository          Jenkins Pipeline (Daily CRON)     │
-│   ─────────────────   ─────►  ───────────────────────────────  │
-│   cert_monitor.py             Agent: SlaveNode01               │
-│   clusters.json               Trigger: H 9 * * *              │
-│   requirements.txt                        │                    │
-│                                           │ SSH (Ed25519)      │
-│              ┌────────────────────────────┤                    │
-│              │                            │                    │
-│   ┌──────────▼──────┐  ┌────────────────▼──┐  ┌────────────┐ │
-│   │  Getpay-Dev-Qa  │  │    NCHL-UAT        │  │  MBL-UAT  │ │
-│   │  (kubeadm)      │  │    (MicroK8s)      │  │  (K3s)    │ │
-│   └─────────────────┘  └───────────────────┘  └────────────┘ │
-│              │                            │           │        │
-│         kubeadm certs             microk8s        k3s cert     │
-│         check-expiration          refresh-certs   / openssl    │
-│              └────────────────────────────┴───────────┘        │
-│                                           │                    │
-│                                   Parse → Evaluate             │
-│                                           │                    │
-│                            days_left ≤ ALERT_THRESHOLD_DAYS?   │
-│                                           │ YES                │
-│                                    HTTP POST ──► Google Chat   │
-│                                               DevOps Room      │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│   ┌─────────────────┐      daily checkout       ┌──────────────────────┐   │
+│   │   GitHub Repo   │ ────────────────────────► │   Jenkins Pipeline   │   │
+│   │                 │                            │   CRON: H 9 * * *   │   │
+│   │ cert_monitor.py │                            │   Agent: SlaveNode01 │   │
+│   │ clusters.json   │                            └──────────┬───────────┘   │
+│   │ Jenkinsfile     │                                       │               │
+│   └─────────────────┘                           pip install + python3 run   │
+│                                                             │               │
+│                              ┌──────────────────────────────┤               │
+│                              │    SSH (Ed25519, no password) │               │
+│                              ▼                              │               │
+│          ┌───────────┐  ┌────────────┐  ┌──────────────────▼───────┐       │
+│          │    UAT    │  │   Dev-Qa   │  │        Staging            │       │
+│          │ MicroK8s  │  │ Kubernetes │  │         K3s               │       │
+│          │10.10.10.xx│  │10.20.30.xx │  │      10.49.31.xx          │       │
+│          └─────┬─────┘  └─────┬──────┘  └────────────┬─────────────┘       │
+│                │              │                       │                     │
+│          microk8s        kubeadm certs           k3s certificate            │
+│          refresh-certs   check-expiration        check / openssl            │
+│                │              │                       │                     │
+│                └──────────────┴───────────────────────┘                     │
+│                                       │                                     │
+│                              Parse → Evaluate                                │
+│                                       │                                     │
+│                       days_left ≤ ALERT_THRESHOLD_DAYS ?                    │
+│                                       │ YES                                 │
+│                               HTTP POST (JSON)                              │
+│                                       │                                     │
+│                           ┌───────────▼──────────┐                         │
+│                           │   Google Chat Space   │                         │
+│                           │    DevOps Room 🔔     │                         │
+│                           └──────────────────────┘                         │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -72,11 +107,12 @@ When any certificate is within the configured expiry window, the system **automa
 
 ```
 📦 Cluster-Cert-Alerting/
-├── 📄 cert_monitor.py       # Core monitoring and alerting script
-├── 📄 clusters.json         # Cluster inventory & connection config
-├── 📄 requirements.txt      # Python dependencies
-├── 📄 Jenkinsfile           # Declarative Jenkins pipeline
-└── 📄 README.md             # This file
+│
+├── 🐍 cert_monitor.py       # Core engine — SSH, parse, evaluate, alert
+├── 📋 clusters.json         # Cluster inventory & connection config
+├── 📦 requirements.txt      # Python dependencies (paramiko, requests)
+├── 🔧 Jenkinsfile           # Declarative Jenkins pipeline definition
+└── 📖 README.md             # You are here
 ```
 
 ---
@@ -85,73 +121,94 @@ When any certificate is within the configured expiry window, the system **automa
 
 ### Prerequisites
 
-- Python 3.8+
-- SSH access to each cluster's master node (key-based, no password)
-- A Google Chat space with a configured Webhook
+- Python `3.8+`
+- SSH access to each cluster master node *(Ed25519 key, no password)*
+- A Google Chat space with an incoming Webhook configured
 
-### 1. Clone the Repository
+---
+
+### Step 1 — Clone the Repository
 
 ```bash
 git clone https://github.com/city-tech/Cluster-Cert-Alerting.git
 cd Cluster-Cert-Alerting
 ```
 
-### 2. Install Dependencies
+---
+
+### Step 2 — Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure Your Clusters
+---
 
-Edit `clusters.json` to define your cluster inventory:
+### Step 3 — Configure Your Clusters
+
+Edit `clusters.json` to define your cluster fleet:
 
 ```json
 [
   {
-    "name": "Production-Cluster",
-    "type": "kubernetes",
-    "ip": "10.0.0.50",
-    "ssh_user": "admin",
-    "ssh_key_path": "/home/user/.ssh/id_ed25519_certmonitor",
-    "env": "PROD"
-  },
-  {
-    "name": "UAT-MicroK8s",
+    "name": "UAT",
     "type": "microk8s",
-    "ip": "10.0.3.200",
-    "ssh_user": "mms_test",
-    "ssh_key_path": "/home/user/.ssh/id_ed25519_certmonitor",
+    "ip": "10.10.10.200",
+    "ssh_user": "user1",
+    "ssh_key_path": "/home/user1/.ssh/id_ed25519_certmonitor",
     "env": "UAT"
   },
   {
-    "name": "Banking-K3s",
+    "name": "Dev-Qa",
+    "type": "kubernetes",
+    "ip": "10.20.30.60",
+    "ssh_user": "user2",
+    "ssh_key_path": "/home/user2/.ssh/id_ed25519_certmonitor",
+    "env": "getpay-dev-qa"
+  },
+  {
+    "name": "Staging",
     "type": "k3s",
-    "ip": "10.43.34.95",
-    "ssh_user": "finpos",
-    "ssh_key_path": "/home/user/.ssh/id_ed25519_certmonitor",
-    "env": "UAT"
+    "ip": "10.49.31.25",
+    "ssh_user": "user3",
+    "ssh_key_path": "/home/user3/.ssh/id_ed25519_certmonitor",
+    "env": "Staging"
   }
 ]
 ```
 
-> ⚠️ **Important:** JSON must be strictly valid — no comments (`//`), no trailing commas.
+> ⚠️ **Strict JSON only** — no `//` comments, no trailing commas. Python's `json.load()` will reject them.
 
-### 4. Set Your Google Chat Webhook
+**Supported `type` values:**
 
-Set it as an environment variable (recommended):
+| Value | Distribution |
+|---|---|
+| `kubernetes` | Standard Kubernetes (kubeadm) |
+| `microk8s` | Canonical MicroK8s |
+| `k3s` | Lightweight K3s |
+
+---
+
+### Step 4 — Configure Your Google Chat Webhook
+
+**Option A — Environment Variable** *(recommended)*
 
 ```bash
-export CERT_MONITOR_WEBHOOK="https://chat.googleapis.com/v1/spaces/YOUR_SPACE/messages?key=..."
+export CERT_MONITOR_WEBHOOK="https://chat.googleapis.com/v1/spaces/YOUR_SPACE_ID/messages?key=..."
 ```
 
-Or edit directly in `cert_monitor.py`:
+**Option B — Edit the script directly**
 
 ```python
-GOOGLE_CHAT_WEBHOOK_URL = "https://chat.googleapis.com/..."
+# cert_monitor.py
+GOOGLE_CHAT_WEBHOOK_URL = "https://chat.googleapis.com/v1/spaces/..."
 ```
 
-### 5. Run the Monitor
+> 💡 To get your webhook: Open Google Chat → Space → **Apps & Integrations** → **Add Webhook** → Copy URL
+
+---
+
+### Step 5 — Run the Monitor
 
 ```bash
 python3 cert_monitor.py
@@ -163,56 +220,94 @@ python3 cert_monitor.py
 
 | Variable | Description | Default |
 |---|---|---|
-| `ALERT_THRESHOLD_DAYS` | Alert threshold in days before expiry | `7` |
-| `CERT_MONITOR_CONFIG` | Path to the cluster inventory JSON file | `clusters.json` |
-| `CERT_MONITOR_WEBHOOK` | Google Chat Webhook URL for alerts | *(required)* |
+| `CERT_MONITOR_THRESHOLD` | Days before expiry to trigger an alert | `7` |
+| `CERT_MONITOR_CONFIG` | Path to the cluster inventory JSON | `clusters.json` |
+| `CERT_MONITOR_WEBHOOK` | Google Chat Webhook URL for sending alerts | *(required)* |
 
-All three can be overridden at runtime via **environment variables** — no code changes needed.
+All values are overridable via **environment variables** at runtime — no code changes required.
 
 ---
 
-## 📊 How It Works
+## ⚙️ How It Works
 
-The script follows a strict 6-step cycle for every cluster on each run:
+Every run follows a strict, deterministic 6-step cycle:
 
 ```
-1. LOAD      →  Read clusters.json inventory
-2. CONNECT   →  Establish SSH tunnel (Ed25519 key, no password)
-3. INSPECT   →  Run native cert check command for cluster type
-4. PARSE     →  Extract cert name, expiry date, days remaining
-5. EVALUATE  →  Compare days_left against ALERT_THRESHOLD_DAYS
-6. ALERT     →  POST formatted message to Google Chat (if urgent)
+┌─────┐   ┌──────────┐   ┌─────────┐   ┌───────┐   ┌──────────┐   ┌──────────┐
+│  1  │──►│  LOAD    │──►│ CONNECT │──►│INSPECT│──►│  PARSE   │──►│ EVALUATE │
+│     │   │clusters  │   │ SSH     │   │native │   │ Regex    │   │days_left │
+│     │   │  .json   │   │tunnel   │   │command│   │ parser   │   │vs thresh │
+└─────┘   └──────────┘   └─────────┘   └───────┘   └──────────┘   └────┬─────┘
+                                                                         │
+                                                                         ▼
+                                                                    ┌──────────┐
+                                                                    │  ALERT   │
+                                                                    │ Google   │
+                                                                    │  Chat    │
+                                                                    └──────────┘
 ```
 
-### Supported Commands Per Distribution
+### Certificate Commands by Distribution
 
-| Distribution | Command Executed |
+| Distribution | Command |
 |---|---|
 | `kubernetes` / `kubeadm` | `sudo kubeadm certs check-expiration` |
 | `microk8s` | `sudo microk8s refresh-certs --check` |
-| `k3s` | `sudo k3s certificate check` *(falls back to `openssl` if unavailable)* |
+| `k3s` | `sudo k3s certificate check` → fallback: `openssl x509` scan |
 
-### Certificate Status Levels
+### Status Levels
 
-| Status | Condition | Action |
+| Badge | Condition | Action Taken |
 |---|---|---|
-| ✅ **OK** | `days > 30` | Logged to console only |
-| ⚠️ **WARNING** | `5 < days ≤ 30` | Logged to console only |
-| 🚨 **URGENT** | `days ≤ threshold` | Alert sent to Google Chat |
+| ✅ **OK** | `days > 30` | Logged to Jenkins console |
+| ⚠️ **WARNING** | `5 < days ≤ 30` | Logged to Jenkins console |
+| 🚨 **URGENT** | `days ≤ threshold` | Alert fired to Google Chat |
 
-> Root CAs (long-lived, 10+ year certs) are automatically **excluded** from alerts to prevent noise.
+> 🔇 **Root Certificate Authorities** (containing `CA` in name) are always excluded — no false alerts from 10-year certs.
 
 ---
 
-## 💬 Sample Alert (Google Chat)
+## 📊 Live Console Output Example
 
 ```
-🚨 CERTIFICATE EXPIRY ALERT: Getpay-Dev-Qa 🚨
+CERTIFICATE EXPIRY CHECK - 2026-01-28
+3 cluster(s) loaded
+
+UAT (UAT) @ 10.10.10.200 -- microk8s
+......................................................................................
+Certificates:
+  • server                   OK                 expires 2026-11-01
+  • front-proxy-client       WARNING (22d)      expires 2026-02-19
+......................................................................................
+
+Dev-Qa (getpay-dev-qa) @ 10.20.30.60 -- kubernetes
+......................................................................................
+Certificates:
+  • apiserver                OK                 expires 2026-12-15
+  • admin.conf               URGENT (3d)        expires 2026-02-01
+......................................................................................
+-> Alert sent for Dev-Qa
+
+Staging (Staging) @ 10.49.31.25 -- k3s
+......................................................................................
+Certificates:
+  • server-ca                OK                 expires 2027-03-01
+......................................................................................
+
+All other clusters: OK
+```
+
+---
+
+## 💬 Sample Google Chat Alert
+
+```
+🚨 CERTIFICATE EXPIRY ALERT: Dev-Qa 🚨
 
 • Environment:   getpay-dev-qa
-• Server:        10.20.30.141
-• Certificates:  `apiserver`, `front-proxy-client`
-• Expires In:    3 days (2026-02-01)
+• Server:        10.20.30.60
+• Certificates:  `admin.conf`, `front-proxy-client`
+• Expires In:    3 days  (2026-02-01)
 
 Please plan for renewal soon to avoid disruption.
 ```
@@ -221,120 +316,124 @@ Please plan for renewal soon to avoid disruption.
 
 ## 🔐 SSH Key Setup
 
-Generate a dedicated Ed25519 key for this automation:
+Generate a **dedicated** Ed25519 keypair for this automation job:
 
+**Linux / macOS**
 ```bash
-# Generate the key (Linux/macOS)
+# Generate key
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_certmonitor -N ""
 
-# Authorize it on each cluster master
-ssh-copy-id -i ~/.ssh/id_ed25519_certmonitor.pub user@<cluster-ip>
+# Authorize on each cluster master
+ssh-copy-id -i ~/.ssh/id_ed25519_certmonitor.pub user1@10.10.10.200
+ssh-copy-id -i ~/.ssh/id_ed25519_certmonitor.pub user2@10.20.30.60
+ssh-copy-id -i ~/.ssh/id_ed25519_certmonitor.pub user3@10.49.31.25
 
 # Verify passwordless access
-ssh -i ~/.ssh/id_ed25519_certmonitor user@<cluster-ip> whoami
+ssh -i ~/.ssh/id_ed25519_certmonitor user1@10.10.10.200 whoami
 ```
 
+**Windows PowerShell**
 ```powershell
-# Generate the key (Windows PowerShell)
+# Generate key
 ssh-keygen -t ed25519 -f "$HOME\.ssh\id_ed25519_certmonitor" -N '""'
+
+# Authorize on a cluster master
+type "$HOME\.ssh\id_ed25519_certmonitor.pub" | ssh user1@10.10.10.200 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 ```
 
-> 🔒 Set correct permissions: `chmod 600 ~/.ssh/id_ed25519_certmonitor`
+> 🔒 **Permissions:** `chmod 600 ~/.ssh/id_ed25519_certmonitor` and `chmod 700 ~/.ssh/`
 
 ---
 
-## 🤖 Jenkins Automation
+## 🤖 Jenkins Pipeline
 
-The included `Jenkinsfile` runs this monitor as a daily scheduled job:
+The included `Jenkinsfile` automates everything on a daily schedule:
 
 ```groovy
 triggers {
-    cron('H 9 * * *')   // Runs daily around 9 AM
+    cron('H 9 * * *')   // Fires daily around 9 AM
 }
 ```
 
 **Pipeline Stages:**
-1. `Checkout Repo` — Pulls latest code from GitHub (`main` branch)
-2. `Install Dependencies` — Runs `pip install -r requirements.txt`
-3. `Run Certificate Check` — Executes `python3 cert_monitor.py`
+
+| Stage | Action |
+|---|---|
+| `Checkout Repo` | Pulls latest from `main` branch via authenticated GitSCM |
+| `Install sshpass` | Ensures sshpass is available on the agent |
+| `Install Dependencies` | `pip install -r requirements.txt` |
+| `Run Certificate Check` | `python3 cert_monitor.py` with injected credentials |
 
 **Required Jenkins Credentials:**
 
-| ID | Type | Purpose |
+| Credential ID | Type | Used For |
 |---|---|---|
-| `github-hardened-token` | Username + Token | GitHub repo checkout |
-| `mbl-uat-ssh-password` | Username + Password | SSH password cluster (MBL-UAT) |
+| `github-hardened-token` | Username + Token | Authenticated GitHub checkout |
+| `mbl-uat-ssh-password` | Username + Password | SSH password-based cluster access |
 
 ---
 
-## 🧪 Testing the Alerts
+## 🧪 Testing Without Real Expiry
 
-To force-trigger a Google Chat alert during testing (without waiting for real expiry):
+Force-trigger alerts during testing by temporarily raising the threshold:
 
 ```bash
-# Temporarily raise the threshold to catch all certificates
+# Trigger alerts for any cert expiring within 330 days
 export CERT_MONITOR_THRESHOLD=330
 python3 cert_monitor.py
-```
 
-Restore to production value afterward:
-
-```bash
+# Verify alert arrived in Google Chat, then reset
 export CERT_MONITOR_THRESHOLD=7
-```
-
----
-
-## 📈 Console Output Example
-
-```
-CERTIFICATE EXPIRY CHECK - 2026-01-28
-
-2 cluster(s) loaded
-
-Getpay-Dev-Qa (getpay-dev-qa) @ 10.20.30.141 -- kubernetes
-......................................................................................
-Certificates:
-  • apiserver               OK                 expires 2027-01-15
-  • apiserver-kubelet-client OK                expires 2027-01-15
-  • front-proxy-client      WARNING (25d)      expires 2026-02-22
-  • admin.conf              URGENT (3d)        expires 2026-02-01
-......................................................................................
--> Alert sent for Getpay-Dev-Qa
 ```
 
 ---
 
 ## 🗺️ Roadmap
 
-- [x] Multi-distribution support (kubeadm, MicroK8s, K3s)
+- [x] Multi-distribution support — `kubeadm`, `MicroK8s`, `K3s`
 - [x] Google Chat alerting via Webhook
-- [x] Jenkins CRON pipeline
-- [x] Ed25519 SSH key authentication
-- [ ] Migrate SSH keys to Jenkins `sshagent` plugin
-- [ ] Add email/Slack fallback notifications
-- [ ] Add retry logic and connection timeout handling
-- [ ] Restore NCHL-UAT cluster (pending network/firewall fix)
-- [ ] Expand to all 15 clusters
+- [x] Jenkins CRON pipeline with credential injection
+- [x] Ed25519 SSH key authentication (agentless)
+- [x] Per-cluster alert grouping (no alert spam)
+- [ ] Migrate SSH keys to Jenkins `sshagent` plugin *(in progress)*
+- [ ] Add retry logic & connection timeout handling
+- [ ] Email / Slack fallback notifications
+- [ ] Prometheus metrics endpoint exposure
+- [ ] Expand coverage to full 15-cluster fleet
 
 ---
 
-## 📝 FAQ
+## ❓ FAQ
 
-**Q: Does this install anything on my clusters?**  
-A: No. All checks are performed passively over SSH using native OS commands.
+<details>
+<summary><b>Does this install anything on my clusters?</b></summary>
 
-**Q: What Kubernetes distributions are supported?**  
-A: Standard Kubernetes (kubeadm), MicroK8s, and K3s — all in the same run.
+No. All checks are performed passively over SSH using native OS-level commands. Zero software is installed on target nodes.
+</details>
 
-**Q: Where do the alerts go?**  
-A: Directly to your configured Google Chat space via Webhook.
+<details>
+<summary><b>What Kubernetes distributions are supported?</b></summary>
 
-**Q: Does it alert on root CA certificates?**  
-A: No. Root CAs (10+ year certs) are automatically filtered out to suppress noise.
+Standard Kubernetes (kubeadm), MicroK8s, and K3s — all handled within a single run.
+</details>
 
-**Q: Can I monitor clusters on different subnets/VPNs?**  
-A: Yes — as long as the Jenkins agent has SSH connectivity to the cluster master nodes.
+<details>
+<summary><b>Does it alert on root CA certificates?</b></summary>
+
+No. Root CAs (typically valid for 10+ years) are automatically excluded by checking for `CA` in the certificate name. This prevents false alerts.
+</details>
+
+<details>
+<summary><b>Can it monitor clusters on different subnets or behind a VPN?</b></summary>
+
+Yes — as long as the Jenkins agent node has SSH network connectivity to each cluster's master node.
+</details>
+
+<details>
+<summary><b>What happens if a cluster is unreachable?</b></summary>
+
+The script logs a detailed error for that cluster and continues checking the remaining clusters. One offline node does not stop the full run.
+</details>
 
 ---
 
@@ -342,9 +441,15 @@ A: Yes — as long as the Jenkins agent has SSH connectivity to the cluster mast
 
 | Name | Role |
 |---|---|
-| **Pratham Sharma** | Author & DevOps Engineer |
+| **Pratham Sharma** | Author · DevOps Engineer |
 | **Citytech System Team** | Infrastructure & Operations |
 
 ---
 
-> Built with ❤️ by **Citytech System Team** — Powered by **Antigravity AI**
+<div align="center">
+
+Built with ❤️ by **Citytech System Team**
+
+*Powered by Antigravity AI*
+
+</div>
