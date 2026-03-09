@@ -1,0 +1,26 @@
+[
+  {
+    "name": "UAT",
+    "type": "microk8s",
+    "ip": "10.10.10.200",
+    "ssh_user": "user1",
+    "ssh_key_path": "C:\\Users\\dummyuser\\.ssh\\id_ed25519_certmonitor",
+    "env": "UAT"
+  },
+  {
+    "name": "Dev-Qa",
+    "type": "kubernetes",
+    "ip": "10.20.30.60",
+    "ssh_user": "user2",
+    "ssh_key_path": "C:\\Users\\dummyuser\\.ssh\\id_ed25519_certmonitor",
+    "env": "getpay-dev-qa"
+  },
+  {
+    "name": "Staging",
+    "type": "k3s",
+    "ip": "10.49.31.25",
+    "ssh_user": "user3",
+    "ssh_key_path": "C:\\Users\\dummyuser\\.ssh\\id_ed25519_certmonitor",
+    "env": "Staging"
+  }
+]
