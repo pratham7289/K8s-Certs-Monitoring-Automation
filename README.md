@@ -9,7 +9,6 @@
 [![Jenkins](https://img.shields.io/badge/Jenkins-CI%2FCD-D24939?style=for-the-badge&logo=jenkins&logoColor=white)](https://www.jenkins.io/)
 [![Google Chat](https://img.shields.io/badge/Google%20Chat-Alerts-00AC47?style=for-the-badge&logo=googlechat&logoColor=white)](https://chat.google.com/)
 [![SSH](https://img.shields.io/badge/SSH-Ed25519-black?style=for-the-badge&logo=openssh&logoColor=white)](https://www.openssh.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-F7DF1E?style=for-the-badge)](LICENSE)
 
 <br/>
 
@@ -437,19 +436,3 @@ The script logs a detailed error for that cluster and continues checking the rem
 
 ---
 
-## 👥 Authors & Credits
-
-| Name | Role |
-|---|---|
-| **Pratham Sharma** | Author · DevOps Engineer |
-| **Citytech System Team** | Infrastructure & Operations |
-
----
-
-<div align="center">
-
-Built with ❤️ by **Citytech System Team**
-
-*Powered by Antigravity AI*
-
-</div>
